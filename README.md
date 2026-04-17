@@ -1,7 +1,3 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/EkOezxBP)
-
-# Course Project Option 1
-
 **Team:** Weijie Du, Xin (Vicky) Shu
 
 **Code Walkthrough Video:** https://drive.google.com/file/d/1d6zBtVjQLKoBElFzyVHEOvV8E3jAZ5lC/view?usp=sharing
@@ -184,56 +180,3 @@ gsutil cat gs://<PROJECT_ID>-hadoop-staging/mayavi_output/part-*
 
 The pipeline prints the results at the end of the "Run Hadoop Job" stage.
 
----
-
-## Checkpoint Evidence
-
-### Checkpoint 1
-
-#### Hadoop Deployment (Terraform → Dataproc)
-
-<img width="2996" height="1718" alt="image" src="https://github.com/user-attachments/assets/c5e38018-ce84-4c11-a5ea-d77db10ba8d5" />
-<img width="2756" height="1354" alt="image" src="https://github.com/user-attachments/assets/1b6c09ce-7659-4e3b-a1c6-6f8291be6883" />
-
-#### Jenkins & SonarQube Deployment
-
-<img width="1231" height="922" alt="Screenshot 2026-02-27 at 7 31 53 PM" src="https://github.com/user-attachments/assets/de00657b-f24f-43ba-a346-cd5ce1982e9e" />
-<img width="1362" height="1014" alt="Screenshot 2026-02-27 at 7 52 11 PM" src="https://github.com/user-attachments/assets/154f2d1c-273f-4591-b31f-fdc070175998" />
-
-#### Services Page
-
-<img width="1369" height="1014" alt="Screenshot 2026-02-27 at 7 35 54 PM" src="https://github.com/user-attachments/assets/3d906fb7-f4d9-4d90-bd1e-fe6d25f20d02" />
-
-#### Jenkins ↔ SonarQube Integration
-
-<img width="1358" height="1013" alt="Screenshot 2026-02-27 at 7 36 35 PM" src="https://github.com/user-attachments/assets/b3497af0-12f6-4b45-aead-bbb8bf06ccbf" />
-<img width="1360" height="1018" alt="Screenshot 2026-02-27 at 7 37 04 PM" src="https://github.com/user-attachments/assets/86f61793-f9a0-4eb8-bf47-2ed354bd293f" />
-
-#### SonarQube Analysis
-
-<img width="1372" height="1024" alt="Screenshot 2026-03-01 at 2 24 29 AM" src="https://github.com/user-attachments/assets/60f5ce9f-c5b2-400b-82a9-119aae7c5370" />
-<img width="1357" height="1014" alt="Screenshot 2026-03-01 at 2 55 50 PM" src="https://github.com/user-attachments/assets/124e7cd2-455a-473b-912a-591f9f588e5b" />
-
-#### Jenkins → GitHub Webhook
-
-<img width="3000" height="1694" alt="c50a386959fb855f765da6ef6f842faf" src="https://github.com/user-attachments/assets/df7916ec-2f03-4b50-a587-1363af97a8ca" />
-
-#### MapReduce Line Count Output
-
-After SonarQube shows no blockers, the pipeline packages the repo, uploads it to GCS, and runs a Hadoop Streaming job with `mr/mapper.py` and `mr/reducer.py` to count lines per file. Output lands in `gs://<PROJECT_ID>-hadoop-staging/mayavi_output/`. See `mayavi_linecount_all.txt` for the full result.
-
-<img width="2984" height="796" alt="image" src="https://github.com/user-attachments/assets/4bf0da65-8377-41d2-a67b-179f59d5c418" />
-<img width="2998" height="1704" alt="image" src="https://github.com/user-attachments/assets/f70d33f1-7be2-4883-a3a2-d8be8305a2a4" />
-
-### Checkpoint 2
-
-#### CI/CD Pipeline
-
-The Jenkins pipeline (`Jenkinsfile`) automates the full workflow:
-
-1. **Checkout** — clones the Mayavi repository
-2. **SonarQube Analysis** — runs static code analysis
-3. **Check for Blockers** — queries SonarQube for BLOCKER-level issues
-4. **Run Hadoop Job** — if no blockers, uploads the repo to GCS and submits a Hadoop Streaming MapReduce job to Dataproc
-
-Results are stored in GCS at `gs://<PROJECT_ID>-hadoop-staging/mayavi_output/` and can be viewed via the results-ui dashboard, `gsutil`, or the Jenkins console (see step 7 above).
