@@ -1,0 +1,25 @@
+# Terraform local state and working directories
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Terraform variable values that may contain local/project-specific settings
+*.tfvars
+*.tfvars.json
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Provider binaries
+terraform-provider-*
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/

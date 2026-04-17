@@ -1,0 +1,158 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-casc-config
+data:
+  jenkins.yaml: |
+    jenkins:
+      securityRealm:
+        local:
+          allowsSignup: false
+          users:
+            - id: "admin"
+              password: "${JENKINS_ADMIN_PASSWORD:-admin123}"
+
+      authorizationStrategy:
+        unsecured: {}
+
+      remotingSecurity:
+        enabled: true
+
+    credentials:
+      system:
+        domainCredentials:
+          - credentials:
+              - string:
+                  scope: GLOBAL
+                  id: "sonar-token"
+                  secret: "${SONAR_TOKEN}"
+                  description: "SonarQube authentication token"
+              - usernamePassword:
+                  scope: GLOBAL
+                  id: "github-credentials"
+                  username: "${GITHUB_USERNAME}"
+                  password: "${GITHUB_TOKEN}"
+                  description: "GitHub credentials for webhook and repo access"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: jenkins
+        image: jenkins/jenkins:lts
+        ports:
+        - containerPort: 8080
+        - containerPort: 50000
+        env:
+        - name: JAVA_OPTS
+          value: "-Djenkins.install.runSetupWizard=false -Dhudson.security.csrf.GlobalCrumbIssuerConfiguration.DISABLE_CSRF_PROTECTION=true"
+        - name: CASC_JENKINS_CONFIG
+          value: "/var/jenkins_home/casc_configs/jenkins.yaml"
+        - name: JENKINS_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: jenkins-secrets
+              key: admin-password
+        - name: SONAR_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: jenkins-secrets
+              key: sonar-token
+        - name: GITHUB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: jenkins-secrets
+              key: github-username
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: jenkins-secrets
+              key: github-token
+        - name: GITHUB_REPO_OWNER
+          valueFrom:
+            secretKeyRef:
+              name: jenkins-secrets
+              key: github-repo-owner
+        - name: JENKINS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: jenkins-hadoop-config
+              key: JENKINS_URL
+              optional: true
+        envFrom:
+        - configMapRef:
+            name: jenkins-hadoop-config
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+        - name: jenkins-casc
+          mountPath: /var/jenkins_home/casc_configs
+          readOnly: true
+      initContainers:
+      - name: install-plugins
+        image: jenkins/jenkins:lts
+        command:
+        - sh
+        - -c
+        - |
+          jenkins-plugin-cli --plugins \
+            configuration-as-code \
+            git \
+            github \
+            github-branch-source \
+            workflow-aggregator \
+            sonar \
+            job-dsl \
+            credentials \
+            credentials-binding \
+            plain-credentials
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+      volumes:
+      - name: jenkins-home
+        persistentVolumeClaim:
+          claimName: jenkins-pvc
+      - name: jenkins-casc
+        configMap:
+          name: jenkins-casc-config
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-service
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: http
+  - port: 50000
+    targetPort: 50000
+    name: agent
+  selector:
+    app: jenkins

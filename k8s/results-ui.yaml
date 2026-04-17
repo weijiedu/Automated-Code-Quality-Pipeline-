@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: results-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: results-ui
+  template:
+    metadata:
+      labels:
+        app: results-ui
+    spec:
+      containers:
+      - name: results-ui
+        image: python:3.11-slim
+        command: ["/bin/sh", "-c"]
+        args:
+        - pip install --quiet flask google-cloud-storage && python /app/app.py
+        ports:
+        - containerPort: 5000
+        envFrom:
+        - configMapRef:
+            name: jenkins-hadoop-config
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+      volumes:
+      - name: app-code
+        configMap:
+          name: results-ui-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: results-ui-service
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 5000
+  selector:
+    app: results-ui
